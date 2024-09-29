@@ -2,65 +2,96 @@ pipeline {
     agent any
 
     environment {
-        // Define your environment variables here
+        DOCKER_IMAGE = 'imronnm/frontendgitlab:latest'
+        DISCORD_WEBHOOK = credentials('DISCORD_WEBHOOK')
         SSH_KEY = credentials('SSH_KEY')
-        SSH_USER = 'team1'
-        VM_IP = '34.101.126.235'
+        SSH_USER = credentials('SSH_USER')
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
-        APP_DIR = '~/team1-docker/backend'
-        BRANCH = 'main'
     }
 
     stages {
         stage('Build') {
             steps {
-                script { 
-                    // Build your application
-                    echo 'Building...'
-                    // Example: sh 'docker build -t your-image-name:${env.BUILD_ID} .'
+                script {
+                    // Login to Docker Hub
+                    docker.withRegistry('https://index.docker.io/v1/', DOCKERHUB_CREDENTIALS) {
+                        // Build Docker Image
+                        sh "docker build -t ${DOCKER_IMAGE} ${dir}"
+                        // Push Docker Image to Docker Hub
+                        sh "docker push ${DOCKER_IMAGE}"
+                    }
                 }
+                // Send notification to Discord
+                sendDiscordNotification("Build Done ✅! Deployment is starting.")
             }
         }
 
-        stage('Test') {
-            steps {
-                script { 
-                    // Test your application
-                    echo 'Testing...'
-                    // Example: sh 'docker run your-image-name:${env.BUILD_ID} npm test'
-                }
+        stage('Deploy Staging') {
+            when {
+                branch 'staging'
             }
-        }
-        
-        stage('Deploy') {
             steps {
-                script { 
-                    // SSH into the VM and deploy your application
-                    echo 'Deploying...'
-                    
-                    // Example of using SSH to run commands on the remote server
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY} ${SSH_USER}@${VM_IP} << EOF
-                            cd ${APP_DIR}
-                            git checkout ${BRANCH}
-                            docker compose down
-                            docker compose up -d --build
+                script {
+                    // Create a temporary file for SSH key
+                    writeFile file: 'id_rsa', text: "${SSH_KEY}"
+                    sh 'chmod 600 id_rsa'
+
+                    // Deploy to Staging
+                    sshagent(['SSH_KEY']) {
+                        sh """
+                        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${vmapps} 'bash -s' << EOF
+                        set -e
+                        cd ${dir}
+                        docker-compose down || echo "Failed to stop containers"
+                        docker pull ${DOCKER_IMAGE} || echo "Failed to pull image"
+                        docker-compose up -d || echo "Failed to start containers"
                         EOF
-                    """
+                        """
+                    }
+                    // Clean up SSH key
+                    sh 'rm -f id_rsa'
                 }
+                // Send notification to Discord
+                sendDiscordNotification("🚀 Deploy Staging Sukses!! 🔥")
+            }
+        }
+
+        stage('Deploy Production') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    // Create a temporary file for SSH key
+                    writeFile file: 'id_rsa', text: "${SSH_KEY}"
+                    sh 'chmod 600 id_rsa'
+
+                    // Deploy to Production
+                    sshagent(['SSH_KEY']) {
+                        sh """
+                        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${vmapps} 'bash -s' << EOF
+                        set -e
+                        cd ${dir}
+                        docker-compose down || echo "Failed to stop containers"
+                        docker pull ${DOCKER_IMAGE} || echo "Failed to pull image"
+                        docker-compose up -d || echo "Failed to start containers"
+                        EOF
+                        """
+                    }
+                    // Clean up SSH key
+                    sh 'rm -f id_rsa'
+                }
+                // Send notification to Discord
+                sendDiscordNotification("🚀 Deploy Production Sukses!! 🔥 Aplikasi kita udah live di production! Cek deh! 👀.")
             }
         }
     }
+}
 
-    post {
-        always {
-            echo 'This will always run'
-        }
-        success {
-            echo 'This will run only on success'
-        }
-        failure {
-            echo 'This will run only on failure'
-        }
-    }
+// Function to send notification to Discord
+def sendDiscordNotification(String message) {
+    sh """
+    curl -X POST -H "Content-Type: application/json" \
+    -d '{"content": "${message}"}' ${DISCORD_WEBHOOK}
+    """
 }
