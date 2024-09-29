@@ -2,11 +2,11 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'imronnm/frontendgitlab:latest'
+        DOCKER_IMAGE = 'imronnm/imronnm/backendjenkins:latest'
         DISCORD_WEBHOOK = credentials('DISCORD_WEBHOOK')
-        SSH_KEY = credentials('SSH_KEY')
         SSH_USER = credentials('SSH_USER')
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+        vmapps = 'team1@34.101.126.235'
     }
 
     stages {
@@ -36,10 +36,14 @@ pipeline {
                     writeFile file: 'id_rsa', text: "${SSH_KEY}"
                     sh 'chmod 600 id_rsa'
 
+
+
+
+
                     // Deploy to Staging
                     sshagent(['SSH_KEY']) {
                         sh """
-                        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${vmapps} 'bash -s' << EOF
+                        ssh -o StrictHostKeyChecking=no ${vmapps} 'bash -s' << EOF
                         set -e
                         cd ${dir}
                         docker-compose down || echo "Failed to stop containers"
@@ -69,7 +73,7 @@ pipeline {
                     // Deploy to Production
                     sshagent(['SSH_KEY']) {
                         sh """
-                        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${vmapps} 'bash -s' << EOF
+                        ssh -o StrictHostKeyChecking=no ${vmapps} 'bash -s' << EOF
                         set -e
                         cd ${dir}
                         docker-compose down || echo "Failed to stop containers"
