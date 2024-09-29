@@ -19,11 +19,20 @@ pipeline {
             }
         }
         
+        stage('Check Docker') {
+            steps {
+                script {
+                    echo 'Checking Docker installation...'
+                    sh 'docker --version'  // This should show the Docker version
+                }
+            }
+        }
+        
         stage('Build') {
             steps {
                 script {
                     echo 'Building the Docker image...'
-                    // Assuming your Dockerfile is in the backend directory
+                    // Build the Docker image
                     sh 'docker build -t your-image-name -f ${DIR}/Dockerfile ${DIR}'
                 }
             }
@@ -31,7 +40,7 @@ pipeline {
         
         stage('Deploy to Staging') {
             steps {
-                sshagent(['SSH_KEY']) {  // Use your SSH key credential
+                sshagent(['SSH_KEY']) {
                     script {
                         echo 'Deploying to staging...'
                         // Login to Docker Hub
