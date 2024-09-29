@@ -40,12 +40,6 @@ pipeline {
             }
         }
         
-        // Manual approval before production deployment
-        stage('approval') {
-            steps {
-                input message: 'Deploy to production?'
-            }
-        }
 
         // Stage Deploy to Production
         stage ("deploy to production") {
