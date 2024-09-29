@@ -1,56 +1,44 @@
 pipeline {
     agent any
-    environment {
-        DISCORD_WEBHOOK = credentials('DISCORD_WEBHOOK')
-        SSH_KEY = credentials('SSH_KEY')
-        SSH_USER = credentials('SSH_USER')
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
-    }
+
     stages {
-        stage('Checkout Code') {
+        stage('Build') {
             steps {
-                script {
-                    def branch = 'main' // Define the branch variable here
-                    checkout([
-                        $class: 'GitSCM',
-                        branches: [[name: branch]],
-                        userRemoteConfigs: [[url: 'https://github.com/imronnm/cicd-backend', credentialsId: 'SSH_KEY']]
-                    ])
+                script { 
+                    // Your build steps here
+                    echo 'Building...'
                 }
             }
         }
-        stage('Build Docker Image') {
+
+        stage('Test') {
             steps {
-                script {
-                    // Add your Docker build steps here
+                script { 
+                    // Your test steps here
+                    echo 'Testing...'
                 }
             }
         }
-        stage('Push Docker Image') {
+        
+        stage('Deploy') {
             steps {
-                script {
-                    // Add your Docker push steps here
-                }
-            }
-        }
-        stage('Deploy to VM') {
-            steps {
-                script {
-                    // Add your deployment steps here
-                }
-            }
-        }
-        stage('Notify Discord') {
-            steps {
-                script {
-                    // Add your notification steps here
+                script { 
+                    // Your deploy steps here
+                    echo 'Deploying...'
                 }
             }
         }
     }
+
     post {
         always {
-            // Cleanup actions here
+            echo 'This will always run'
+        }
+        success {
+            echo 'This will run only on success'
+        }
+        failure {
+            echo 'This will run only on failure'
         }
     }
 }
