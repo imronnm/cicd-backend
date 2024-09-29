@@ -43,8 +43,8 @@ pipeline {
                         ssh -o StrictHostKeyChecking=no -i ${SSH_KEY} ${SSH_USER}@${VM_IP} << EOF
                             cd ${APP_DIR}
                             git checkout ${BRANCH}
-                            docker-compose down
-                            docker-compose up -d --build
+                            docker compose down
+                            docker compose up -d --build
                         EOF
                     """
                 }
