@@ -2,6 +2,7 @@ def secret = 'SSH_KEY'
 def vmapps = 'team1@34.101.126.235'
 def dir    = '~/team1-docker/backend'
 def branch = 'main'
+def images = 'imronnm/backendjenkins
 def tag    = 'latest'
 
 pipeline {
