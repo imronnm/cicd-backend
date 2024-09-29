@@ -1,52 +1,47 @@
+def secret = 'SSH_KEY'
+def vmapps = 'team1@34.101.126.235'
+def dir    = '~/team1-backend/backend'
+def branch = 'main'
+def tag    = 'latest'
+
 pipeline {
     agent any
-
-    environment {
-        // Definisikan variabel lingkungan
-        SECRET = credentials('SSH_KEY') // menggunakan kredensial SSH
-        VMAPPS = 'team1@34.143.177.29'
-        DIR = '~/team1-backend/backend'
-        BRANCH = 'main'
-        TAG = 'latest'
-    }
-
     stages {
-        stage('Checkout') {
-            steps {
-                // Mengambil kode dari repositori
-                git branch: "${BRANCH}", url: 'https://github.com/imronnm/cicd-backend.git'
-            }
-        }
-
-        stage('Build') {
-            steps {
-                // Menjalankan perintah build
-                sh 'echo "Building the application..."'
-                // Tambahkan perintah build yang sesuai jika diperlukan
-                // Contoh: sh 'npm install'
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                // Menghubungkan ke server dan mendistribusikan aplikasi
-                sshagent([SECRET]) {
-                    sh """
-                    ssh ${VMAPPS} "mkdir -p ${DIR} && rm -rf ${DIR}/*"
-                    scp -o StrictHostKeyChecking=no -r ./* ${VMAPPS}:${DIR}
-                    ssh ${VMAPPS} "cd ${DIR} && docker-compose down && docker-compose up -d --build"
-                    """
+        stage ("pull") {
+           steps {
+               sshagent([secret]){
+                  sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
+                  cd ${dir}
+                  git pull origin ${branch}
+                  echo "Git Pull Telah Selesai"
+                  exit
+                  EOF"""
                 }
             }
         }
-    }
-
-    post {
-        success {
-            echo 'Deployment successful!'
+        stage ("docker build") {
+           steps {
+               sshagent([secret]){
+                  sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
+                  cd ${dir}
+                  docker build -t ${images}:${tag} .
+                  echo "installation dependencies telah selesai"
+                  exit
+                  EOF"""
+                }
+            }
         }
-        failure {
-            echo 'Deployment failed!'
+        stage ("run") {
+           steps {
+               sshagent([secret]){
+                  sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
+                  cd ${dir}
+                  docker compose up -d
+                  echo "apllication already run"
+                  exit
+                  EOF"""
+                }
+            }
         }
-    }
+    }                           
 }
