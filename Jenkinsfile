@@ -5,12 +5,13 @@ def dir = '~/team1-docker/backend'
 def branch = 'main'
 def images = 'imronnm/backendjenkins'
 def tag = 'latest'
+def spider_domain = 'https://api.team1.staging.studentdumbways.my.id/'
 
 pipeline {
     agent any
     stages {
         // Stage Build
-        stage ("build") {
+        stage("build") {
             steps {
                 sshagent([secret]){
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps_staging} << EOF 
@@ -26,7 +27,7 @@ pipeline {
         }
         
         // Stage Deploy to Staging
-        stage ("deploy to staging") {
+        stage("deploy to staging") {
             steps {
                 sshagent([secret]){
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps_staging} << EOF 
@@ -39,10 +40,25 @@ pipeline {
                 }
             }
         }
-        
 
+        // Stage Spider Check
+        stage("spider check") {
+            steps {
+                sshagent([secret]){
+                    sh """ssh -o StrictHostKeyChecking=no ${vmapps_staging} << EOF 
+                    cd ${dir}
+                    wget --spider --recursive --no-verbose --level=5 --output-file=wget-log.txt ${spider_domain}
+                    echo "Spider check completed"
+                    exit
+                    EOF"""
+                }
+                // Archive the wget log
+                archiveArtifacts artifacts: 'wget-log.txt', allowEmptyArchive: true
+            }
+        }
+        
         // Stage Deploy to Production
-        stage ("deploy to production") {
+        stage("deploy to production") {
             steps {
                 sshagent([secret]){
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps_production} << EOF 
