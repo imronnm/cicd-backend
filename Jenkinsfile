@@ -53,6 +53,8 @@ pipeline {
 
 // Fungsi untuk mengirim notifikasi ke Discord menggunakan wget
 def sendDiscordNotification(String message) {
+    // Pastikan message di-escape dengan benar
+    message = message.replaceAll("\"", "\\\\\"") 
     sh """
         wget --header="Content-Type: application/json" \
         --post-data='{"content": "${message}"}' \
