@@ -17,7 +17,7 @@ pipeline {
                     }
 
                     // Menentukan direktori tempat Dockerfile berada
-                    def buildContext = './backend' // Pastikan ini sesuai dengan direktori Dockerfile Anda
+                    def buildContext = '~/team1-docker/backend' // Pastikan ini sesuai dengan direktori Dockerfile Anda
 
                     // Membangun image Docker
                     echo "Building Docker image from path: ${buildContext}"
