@@ -5,7 +5,8 @@ def dir = '~/team1-docker/backend'
 def branch = 'main'
 def images = 'imronnm/backendjenkins'
 def tag = 'latest'
-def spider_domain = 'https://api.team1.staging.studentdumbways.my.id/'
+def spider_domain = 'http://api.team1.staging.my.id'
+def discord_webhook = 'https://discord.com/api/webhooks/1288738076243263511/tF3j9enIM27eZB_NVfv_0gtXpcGm13PrYgbObobY9jDMdhZk9Z_JNHENTpA_4G9dFwJH'
 
 pipeline {
     agent any
@@ -69,6 +70,23 @@ pipeline {
                     echo "Application deployed on Production"
                     exit
                     EOF"""
+                }
+            }
+        }
+
+        // Stage Notify Discord
+        stage("notify discord") {
+            steps {
+                script {
+                    def jsonPayload = """
+                    {
+                        "content": "Deployment to Production was successful!",
+                        "username": "Jenkins Bot"
+                    }
+                    """
+                    sh """
+                    curl -X POST -H "Content-Type: application/json" -d '${jsonPayload}' ${discord_webhook}
+                    """
                 }
             }
         }
