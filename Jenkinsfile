@@ -8,61 +8,54 @@ def discordWebhookURL = 'https://discord.com/api/webhooks/1288738076243263511/tF
 
 pipeline {
     agent any
-
     stages {
-        stage("Pull") {
-            steps {
-                sshagent([secret]) {
-                    script {
-                        try {
-                            sh "ssh -o StrictHostKeyChecking=no ${vmapps} 'cd ${dir} && git pull origin ${branch}'"
-                            sendDiscordNotification("Git Pull Completed Successfully")
-                        } catch (Exception e) {
-                            sendDiscordNotification("Git Pull Failed: ${e.message}")
-                            error "Git Pull Failed!"
-                        }
-                    }
+        stage ("pull") {
+           steps {
+               sshagent([secret]){
+                  sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
+                  cd ${dir}
+                  git pull origin ${branch}
+                  echo "Git Pull Telah Selesai"
+                  exit
+                  EOF"""
                 }
+                sendDiscordNotification("Git Pull telah selesai")
             }
         }
-        stage("Docker Build") {
-            steps {
-                sshagent([secret]) {
-                    script {
-                        try {
-                            sh "ssh -o StrictHostKeyChecking=no ${vmapps} 'cd ${dir} && docker build -t ${images}:${tag} .'"
-                            sendDiscordNotification("Docker Build Completed Successfully")
-                        } catch (Exception e) {
-                            sendDiscordNotification("Docker Build Failed: ${e.message}")
-                            error "Docker Build Failed!"
-                        }
-                    }
+        stage ("docker build") {
+           steps {
+               sshagent([secret]){
+                  sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
+                  cd ${dir}
+                  docker build -t ${images}:${tag} .
+                  echo "Installation dependencies telah selesai"
+                  exit
+                  EOF"""
                 }
+                sendDiscordNotification("Docker build telah selesai")
             }
         }
-        stage("Run") {
-            steps {
-                sshagent([secret]) {
-                    script {
-                        try {
-                            sh "ssh -o StrictHostKeyChecking=no ${vmapps} 'cd ${dir} && docker-compose up -d'"
-                            sendDiscordNotification("Application Running Successfully")
-                        } catch (Exception e) {
-                            sendDiscordNotification("Application Failed to Run: ${e.message}")
-                            error "Application Failed to Run!"
-                        }
-                    }
+        stage ("run") {
+           steps {
+               sshagent([secret]){
+                  sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
+                  cd ${dir}
+                  docker compose up -d
+                  echo "Application already running"
+                  exit
+                  EOF"""
                 }
+                sendDiscordNotification("Aplikasi sudah berjalan")
             }
         }
     }
 }
 
+// Fungsi untuk mengirim notifikasi ke Discord menggunakan wget
 def sendDiscordNotification(String message) {
     sh """
-        curl -H "Content-Type: application/json" \
-        -X POST \
-        -d '{"content": "${message}"}' \
-        ${discordWebhookURL}
+        wget --header="Content-Type: application/json" \
+        --post-data='{"content": "${message}"}' \
+        ${discordWebhookURL} -O -
     """
 }
