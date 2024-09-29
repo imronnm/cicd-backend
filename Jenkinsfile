@@ -1,125 +1,65 @@
 pipeline {
     agent any
-
+    
     environment {
         DISCORD_WEBHOOK = credentials('DISCORD_WEBHOOK')
         DOCKER_HUB_PASSWD = credentials('DOCKER_HUB_PASSWD')
         SSH_KEY = credentials('SSH_KEY')
-        SSH_USER = 'team1@34.101.126.235'
+        SSH_USER = 'team1'
+        VM_IP = '34.101.126.235'
+        DIR = '~/team1-docker/backend'
+        BRANCH = 'main'
     }
-
+    
     stages {
+        stage('Checkout') {
+            steps {
+                // Checkout code from Git
+                git branch: "${BRANCH}", url: 'https://github.com/imronnm/cicd-backend'
+            }
+        }
+        
         stage('Build') {
             steps {
                 script {
                     echo 'Building the Docker image...'
-                    // Login to Docker Hub
-                    sh '''
-                        echo "$DOCKER_HUB_PASSWD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
-                    '''
-                    // Build and push the Docker image
-                    sh '''
-                        docker build -t imronnm/backendjenkins:latest .
-                        docker push imronnm/backendjenkins:latest
-                    '''
-                    // Notify Discord
-                    sh '''
-                        curl -X POST -H "Content-Type: application/json" \
-                        -d '{"content": "Build Done✅! Deployment is starting."}' \
-                        $DISCORD_WEBHOOK
-                    '''
-                }
-            }
-            post {
-                cleanup {
-                    // Clean up unused Docker images
-                    sh 'docker image prune -af'
+                    // Assuming your Dockerfile is in the backend directory
+                    sh 'docker build -t your-image-name -f ${DIR}/Dockerfile ${DIR}'
                 }
             }
         }
-
+        
         stage('Deploy to Staging') {
             steps {
-                script {
-                    echo 'Deploying to the staging environment...'
-                    // Write SSH key to a file
-                    writeFile file: 'id_rsa', text: "$SSH_KEY"
-                    sh 'chmod 600 id_rsa'
-                    // SSH into the server and deploy
-                    sh """
-                        ssh -i id_rsa -o StrictHostKeyChecking=no $SSH_USER <<EOF
-                        set -e
-                        cd $dir
-                        docker-compose down || echo "Failed to stop containers"
-                        docker pull imronnm/backendjenkins:latest || echo "Failed to pull image"
-                        docker-compose up -d || echo "Failed to start containers"
-                        EOF
-                    """
-                    // Notify Discord
-                    sh '''
-                        curl -X POST -H "Content-Type: application/json" \
-                        -d '{"content": "🚀 *Deploy Staging Sukses!!🔥"}' \
-                        $DISCORD_WEBHOOK
-                    '''
-                    // Check the staging domain
-                    sh '''
-                        wget --spider -r -nd -nv -l 2 https://team1.studentdumbways.my.id/ || echo "Some pages might be unreachable"
-                    '''
+                sshagent(['SSH_KEY']) {  // Use your SSH key credential
+                    script {
+                        echo 'Deploying to staging...'
+                        // Login to Docker Hub
+                        sh "ssh ${SSH_USER}@${VM_IP} 'echo ${DOCKER_HUB_PASSWD} | docker login -u your-docker-username --password-stdin'"
+                        // Pull the latest image
+                        sh "ssh ${SSH_USER}@${VM_IP} 'docker pull your-image-name'"
+                        // Run the Docker container
+                        sh "ssh ${SSH_USER}@${VM_IP} 'docker run -d --name your-container-name -p 80:80 your-image-name'"
+                    }
                 }
-            }
-            post {
-                cleanup {
-                    // Clean up unused Docker images
-                    sh 'docker image prune -af'
-                    // Remove the SSH key
-                    sh 'rm -f id_rsa'
-                }
-            }
-            when {
-                branch 'staging'
             }
         }
-
-        stage('Deploy to Production') {
+        
+        stage('Cleanup') {
             steps {
                 script {
-                    echo 'Deploying to the production environment...'
-                    // Write SSH key to a file
-                    writeFile file: 'id_rsa', text: "$SSH_KEY"
-                    sh 'chmod 600 id_rsa'
-                    // SSH into the server and deploy
-                    sh """
-                        ssh -i id_rsa -o StrictHostKeyChecking=no $SSH_USER <<EOF
-                        set -e
-                        cd $dir
-                        docker-compose down || echo "Failed to stop containers"
-                        docker pull imronnm/backendjenkins:latest || echo "Failed to pull image"
-                        docker-compose up -d || echo "Failed to start containers"
-                        EOF
-                    """
-                    // Notify Discord
-                    sh '''
-                        curl -X POST -H "Content-Type: application/json" \
-                        -d '{"content": "🚀 *Deploy Production Sukses!!🔥 Aplikasi kita udah live di production! Cek deh! 👀."}' \
-                        $DISCORD_WEBHOOK
-                    '''
-                    // Check the production domain
-                    sh '''
-                        wget --spider -r -nd -nv -l 2 https://team1.studentdumbways.my.id/ || echo "Some pages might be unreachable"
-                    '''
+                    echo 'Cleaning up...'
+                    // Clean up dangling images, if necessary
+                    sh "ssh ${SSH_USER}@${VM_IP} 'docker image prune -af'"
                 }
             }
-            post {
-                cleanup {
-                    // Clean up unused Docker images
-                    sh 'docker image prune -af'
-                    // Remove the SSH key
-                    sh 'rm -f id_rsa'
-                }
-            }
-            when {
-                branch 'main'
-            }
+        }
+    }
+    
+    post {
+        always {
+            // Send a notification to Discord or perform any other post actions
+            echo "Pipeline finished."
         }
     }
 }
