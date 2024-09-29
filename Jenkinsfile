@@ -11,7 +11,7 @@ def discord_webhook = 'https://discord.com/api/webhooks/1288738076243263511/tF3j
 pipeline {
     agent any
     stages {
-        // Stage Build
+        // Stage Build for Staging
         stage("build") {
             steps {
                 sshagent([secret]){
@@ -23,6 +23,18 @@ pipeline {
                     echo "Docker Build Selesai"
                     exit
                     EOF"""
+                }
+                // Send notification for staging build success
+                script {
+                    def jsonPayload = """
+                    {
+                        "content": "Build for staging branch was successful!",
+                        "username": "Jenkins Bot"
+                    }
+                    """
+                    sh """
+                    curl -X POST -H "Content-Type: application/json" -d '${jsonPayload}' ${discord_webhook}
+                    """
                 }
             }
         }
@@ -71,16 +83,11 @@ pipeline {
                     exit
                     EOF"""
                 }
-            }
-        }
-
-        // Stage Notify Discord
-        stage("notify discord") {
-            steps {
+                // Send notification for production deploy success
                 script {
                     def jsonPayload = """
                     {
-                        "content": "Deployment to Production was successful!",
+                        "content": "Deployment to Production from main branch was successful!",
                         "username": "Jenkins Bot"
                     }
                     """
