@@ -4,27 +4,23 @@ def dir    = '/home/team1/team1-docker/backend'
 def branch = 'main'
 def images = 'imronnm/backendjenkins'
 def tag    = 'latest'
-def discordWebhookUrl = 'https://discord.com/api/webhooks/1288738076243263511/tF3j9enIM27eZB_NVfv_0gtXpcGm13PrYgbObobY9jDMdhZk9Z_JNHENTpA_4G9dFwJH'
-
-def sendDiscordNotification(String message) {
-    sh """
-    curl -X POST -H 'Content-Type: application/json' -d '{"content": "${message}"}' ${discordWebhookUrl}
-    """
-}
+def discordWebhookURL = 'https://discord.com/api/webhooks/1288738076243263511/tF3j9enIM27eZB_NVfv_0gtXpcGm13PrYgbObobY9jDMdhZk9Z_JNHENTpA_4G9dFwJH'
 
 pipeline {
     agent any
+
     stages {
         stage("Pull") {
             steps {
                 sshagent([secret]) {
                     script {
-                        def pullResult = sh(script: """ssh -o StrictHostKeyChecking=no ${vmapps} 'cd ${dir} && git pull origin ${branch}'""", returnStatus: true)
-                        if (pullResult != 0) {
-                            sendDiscordNotification("Git Pull Failed!")
+                        try {
+                            sh "ssh -o StrictHostKeyChecking=no ${vmapps} 'cd ${dir} && git pull origin ${branch}'"
+                            sendDiscordNotification("Git Pull Completed Successfully")
+                        } catch (Exception e) {
+                            sendDiscordNotification("Git Pull Failed: ${e.message}")
                             error "Git Pull Failed!"
                         }
-                        sendDiscordNotification("Git Pull Telah Selesai")
                     }
                 }
             }
@@ -33,12 +29,13 @@ pipeline {
             steps {
                 sshagent([secret]) {
                     script {
-                        def buildResult = sh(script: """ssh -o StrictHostKeyChecking=no ${vmapps} 'cd ${dir} && docker build -t ${images}:${tag} .'""", returnStatus: true)
-                        if (buildResult != 0) {
-                            sendDiscordNotification("Docker Build Failed!")
+                        try {
+                            sh "ssh -o StrictHostKeyChecking=no ${vmapps} 'cd ${dir} && docker build -t ${images}:${tag} .'"
+                            sendDiscordNotification("Docker Build Completed Successfully")
+                        } catch (Exception e) {
+                            sendDiscordNotification("Docker Build Failed: ${e.message}")
                             error "Docker Build Failed!"
                         }
-                        sendDiscordNotification("Installation dependencies telah selesai")
                     }
                 }
             }
@@ -47,15 +44,25 @@ pipeline {
             steps {
                 sshagent([secret]) {
                     script {
-                        def runResult = sh(script: """ssh -o StrictHostKeyChecking=no ${vmapps} 'cd ${dir} && docker-compose up -d'""", returnStatus: true)
-                        if (runResult != 0) {
-                            sendDiscordNotification("Application failed to run!")
-                            error "Application failed to run!"
+                        try {
+                            sh "ssh -o StrictHostKeyChecking=no ${vmapps} 'cd ${dir} && docker-compose up -d'"
+                            sendDiscordNotification("Application Running Successfully")
+                        } catch (Exception e) {
+                            sendDiscordNotification("Application Failed to Run: ${e.message}")
+                            error "Application Failed to Run!"
                         }
-                        sendDiscordNotification("Application already running")
                     }
                 }
             }
         }
     }
+}
+
+def sendDiscordNotification(String message) {
+    sh """
+        curl -H "Content-Type: application/json" \
+        -X POST \
+        -d '{"content": "${message}"}' \
+        ${discordWebhookURL}
+    """
 }
