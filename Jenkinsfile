@@ -15,12 +15,17 @@ pipeline {
                         // Login ke Docker Hub
                         sh "echo '${DOCKER_PASS}' | docker login -u '${DOCKER_USER}' --password-stdin"
                     }
-                    
+
+                    // Menentukan direktori tempat Dockerfile berada
+                    def buildContext = './backend' // Pastikan ini sesuai dengan direktori Dockerfile Anda
+
                     // Membangun image Docker
-                    sh 'docker build -t imronnm/backendjenkins:latest ${dir}'
+                    echo "Building Docker image from path: ${buildContext}"
+                    sh "ls -l ${buildContext}" // Debugging untuk melihat file di direktori
+                    sh "docker build -t imronnm/backendjenkins:latest ${buildContext}"
                     
                     // Push image ke Docker Hub
-                    sh 'docker push imronnm/backendjenkins:latest'
+                    sh "docker push imronnm/backendjenkins:latest"
 
                     // Kirim notifikasi ke Discord
                     sh """
