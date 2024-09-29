@@ -3,20 +3,22 @@ pipeline {
 
     environment {
         DISCORD_WEBHOOK = credentials('DISCORD_WEBHOOK')
-        SSH_KEY = credentials('SSH_KEY')
         SSH_USER = credentials('SSH_USER')
-        DOCKER_CREDENTIALS = credentials('dockerhub-credentials')
+        SSH_KEY = credentials('SSH_KEY')
+        DOCKER_CREDENTIALS = credentials('dockerhub-credentials') // assuming it's username:password
     }
 
     stages {
         stage('Build') {
             steps {
                 script {
-                    // Login ke Docker Hub
-                    sh "echo '${DOCKER_CREDENTIALS}' | docker login -u '${DOCKER_CREDENTIALS}' --password-stdin"
+                    // Login ke Docker Hub menggunakan withCredentials
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKER_PASS', usernameVariable: 'DOCKER_USER')]) {
+                        sh "docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}"
+                    }
 
                     // Membangun image Docker
-                    sh 'docker build -t imronnm/backendjenkins:latest ${dir}'
+                    sh 'docker build -t imronnm/backendjenkins:latest ~/team1-docker/backend'
                     
                     // Push image ke Docker Hub
                     sh 'docker push imronnm/backendjenkins:latest'
@@ -43,12 +45,12 @@ pipeline {
                     
                     // Deploy aplikasi ke VM Staging
                     sh """
-                        ssh -i id_rsa -o StrictHostKeyChecking=no ${SSH_USER}'
+                        ssh -i id_rsa -o StrictHostKeyChecking=no ${SSH_USER}@34.101.126.235 '
                             set -e
-                            cd ${dir}
-                            docker compose down || echo "Failed to stop containers"
+                            cd ~/team1-docker/backend
+                            docker-compose down || echo "Failed to stop containers"
                             docker pull imronnm/backendjenkins:latest || echo "Failed to pull image"
-                            docker compose up -d || echo "Failed to start containers"
+                            docker-compose up -d || echo "Failed to start containers"
                         '
                     """
                     
@@ -77,12 +79,12 @@ pipeline {
                     
                     // Deploy aplikasi ke VM Production
                     sh """
-                        ssh -i id_rsa -o StrictHostKeyChecking=no ${SSH_USER} '
+                        ssh -i id_rsa -o StrictHostKeyChecking=no ${SSH_USER}@34.101.126.235 '
                             set -e
-                            cd ${dir}
-                            docker compose down || echo "Failed to stop containers"
+                            cd ~/team1-docker/backend
+                            docker-compose down || echo "Failed to stop containers"
                             docker pull imronnm/backendjenkins:latest || echo "Failed to pull image"
-                            docker compose up -d || echo "Failed to start containers"
+                            docker-compose up -d || echo "Failed to start containers"
                         '
                     """
                     
