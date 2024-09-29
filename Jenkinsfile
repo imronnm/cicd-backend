@@ -1,74 +1,69 @@
 pipeline {
     agent any
-    
     environment {
-        DISCORD_WEBHOOK = credentials('DISCORD_WEBHOOK')
-        DOCKER_HUB_PASSWD = credentials('DOCKER_HUB_PASSWD')
-        SSH_KEY = credentials('SSH_KEY')
-        SSH_USER = 'team1'
-        VM_IP = '34.101.126.235'
-        DIR = '~/team1-docker/backend'
-        BRANCH = 'main'
+        DISCORD_WEBHOOK = credentials('DISCORD_WEBHOOK') // Mengambil webhook Discord dari kredensial
+        SSH_KEY = credentials('SSH_KEY') // Mengambil SSH key dari kredensial
+        SSH_USER = 'team1' // Username SSH
+        DOCKER_CREDENTIALS = 'dockerhub-credentials' // ID kredensial Docker Hub
     }
-    
     stages {
-        stage('Checkout') {
-            steps {
-                // Checkout code from Git
-                git branch: "${BRANCH}", url: 'https://github.com/imronnm/cicd-backend'
-            }
-        }
-        
-        stage('Check Docker') {
+        stage('Checkout Code') {
             steps {
                 script {
-                    echo 'Checking Docker installation...'
-                    sh 'docker --version'  // This should show the Docker version
+                    // Meng-clone repositori dari Git
+                    sh """
+                    git clone -b ${branch} git@github.com:imronnm/cicd-backend.git ${dir}
+                    """
                 }
             }
         }
-        
-        stage('Build') {
+        stage('Build Docker Image') {
             steps {
                 script {
-                    echo 'Building the Docker image...'
-                    // Build the Docker image
-                    sh 'docker build -t your-image-name -f ${DIR}/Dockerfile ${DIR}'
-                }
-            }
-        }
-        
-        stage('Deploy to Staging') {
-            steps {
-                sshagent(['SSH_KEY']) {
-                    script {
-                        echo 'Deploying to staging...'
-                        // Login to Docker Hub
-                        sh "ssh ${SSH_USER}@${VM_IP} 'echo ${DOCKER_HUB_PASSWD} | docker login -u your-docker-username --password-stdin'"
-                        // Pull the latest image
-                        sh "ssh ${SSH_USER}@${VM_IP} 'docker pull your-image-name'"
-                        // Run the Docker container
-                        sh "ssh ${SSH_USER}@${VM_IP} 'docker run -d --name your-container-name -p 80:80 your-image-name'"
+                    // Masuk ke direktori backend
+                    dir("${dir}") {
+                        // Build image Docker
+                        def app = docker.build("imronnm/backendjenkins:latest")
                     }
                 }
             }
         }
-        
-        stage('Cleanup') {
+        stage('Push Docker Image') {
             steps {
                 script {
-                    echo 'Cleaning up...'
-                    // Clean up dangling images, if necessary
-                    sh "ssh ${SSH_USER}@${VM_IP} 'docker image prune -af'"
+                    // Push image ke Docker Hub
+                    docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS) {
+                        app.push()
+                    }
+                }
+            }
+        }
+        stage('Deploy to VM') {
+            steps {
+                script {
+                    // Menggunakan SSH untuk deploy ke VM
+                    sh """
+                    ssh -i ${SSH_KEY} ${SSH_USER}@34.101.126.235 "docker pull imronnm/backendjenkins:latest && docker run -d imronnm/backendjenkins:latest"
+                    """
+                }
+            }
+        }
+        stage('Notify Discord') {
+            steps {
+                script {
+                    // Notifikasi ke Discord
+                    def message = "Deployment successful!"
+                    sh """
+                    curl -X POST -H 'Content-Type: application/json' -d '{"content": "${message}"}' ${DISCORD_WEBHOOK}
+                    """
                 }
             }
         }
     }
-    
     post {
         always {
-            // Send a notification to Discord or perform any other post actions
-            echo "Pipeline finished."
+            // Cleanup atau langkah-langkah lain setelah build
+            echo 'Cleaning up...'
         }
     }
 }
