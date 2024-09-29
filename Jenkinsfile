@@ -2,7 +2,7 @@ def secret = 'SSH_KEY'
 def vmapps_staging = 'team1@34.101.126.235'
 def vmapps_production = 'team1@34.101.126.235'
 def dir = '~/team1-docker/backend'
-def branch = 'main' // Set default branch
+def branch = 'main'
 def images = 'imronnm/backendjenkins'
 def tag = 'latest'
 def spider_domain = 'http://api.team1.staging.my.id'
@@ -11,27 +11,25 @@ def discord_webhook = 'https://discord.com/api/webhooks/1288738076243263511/tF3j
 pipeline {
     agent any
     stages {
-        // Stage Build for Staging and Main
+        // Stage Build for Staging
         stage("build") {
             steps {
+                sshagent([secret]) {
+                    sh """ssh -o StrictHostKeyChecking=no ${vmapps_staging} << EOF 
+                    cd ${dir}
+                    git pull origin ${branch}
+                    echo "Git Pull Selesai"
+                    docker build -t ${images}:${tag} .
+                    echo "Docker Build Selesai"
+                    exit
+                    EOF"""
+                }
+                
+                // Send notification for staging build success
                 script {
-                    def currentBranch = env.GIT_BRANCH // Dapatkan nama branch saat ini
-
-                    sshagent([secret]) {
-                        sh """ssh -o StrictHostKeyChecking=no ${vmapps_staging} << EOF 
-                        cd ${dir}
-                        git pull origin ${currentBranch}
-                        echo "Git Pull Selesai untuk ${currentBranch}"
-                        docker build -t ${images}:${tag} .
-                        echo "Docker Build Selesai"
-                        exit
-                        EOF"""
-                    }
-
-                    // Send notification for successful build
                     def jsonPayload = """
                     {
-                        "content": "Build for branch '${currentBranch}' was successful!",
+                        "content": "Build for staging branch was successful!",
                         "username": "Jenkins Bot"
                     }
                     """
@@ -69,7 +67,7 @@ pipeline {
                     EOF"""
                 }
                 // Archive the wget log
-                archiveArtifacts artifacts: "${dir}/wget-log.txt", allowEmptyArchive: true
+                archiveArtifacts artifacts: 'wget-log.txt', allowEmptyArchive: true
             }
         }
         
@@ -86,17 +84,19 @@ pipeline {
                     exit
                     EOF"""
                 }
-
+                
                 // Send notification for production deploy success
-                def jsonPayload = """
-                {
-                    "content": "Deployment to Production from '${branch}' branch was successful!",
-                    "username": "Jenkins Bot"
+                script {
+                    def jsonPayload = """
+                    {
+                        "content": "Deployment to Production from main branch was successful!",
+                        "username": "Jenkins Bot"
+                    }
+                    """
+                    sh """
+                    curl -X POST -H "Content-Type: application/json" -d '${jsonPayload}' ${discord_webhook}
+                    """
                 }
-                """
-                sh """
-                curl -X POST -H "Content-Type: application/json" -d '${jsonPayload}' ${discord_webhook}
-                """
             }
         }
     }
