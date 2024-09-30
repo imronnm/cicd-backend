@@ -1,5 +1,5 @@
 def secret = 'SSH_KEY'
-def vmapps= 'team1@34.101.126.235'
+def vmapps = 'team1@34.101.126.235'
 def dir = '~/team1-docker/backend'
 def images = 'imronnm/backendjenkins'
 def tag = 'latest'
@@ -8,6 +8,7 @@ def docker_username = 'docker_username'
 def docker_password = 'docker_password'
 def spider_domain = 'https://api.team1.staging.studentdumbways.my.id/login'
 def discord_webhook = 'https://discord.com/api/webhooks/1288738076243263511/tF3j9enIM27eZB_NVfv_0gtXpcGm13PrYgbObobY9jDMdhZk9Z_JNHENTpA_4G9dFwJH'
+def staging_branch = 'staging' // Define the staging branch name
 
 pipeline {
     agent any
@@ -18,22 +19,22 @@ pipeline {
                 sshagent([secret]) {
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                     cd ${dir}
-                    git pull origin ${staging}
+                    git pull origin ${staging_branch}  // Use defined variable
                     echo "Git Pull Selesai"
 
-                    # Membersihkan image yang tidak terpakai
+                    // Membersihkan image yang tidak terpakai
                     docker image prune -af
                     echo "Docker image pruned"
 
-                    # Build image untuk staging
+                    // Build image untuk staging
                     docker build -t ${images}:staging .
                     echo "Docker Build Selesai untuk Staging"
 
-                    # Login ke Docker Registry
+                    // Login ke Docker Registry
                     echo "${docker_password}" | docker login ${docker_registry} -u ${docker_username} --password-stdin
                     echo "Docker Login Sukses"
 
-                    # Push image Docker ke registry
+                    // Push image Docker ke registry
                     docker push ${images}:staging
                     echo "Docker Push Sukses untuk Staging"
                     exit
@@ -94,19 +95,19 @@ pipeline {
                     git pull origin main
                     echo "Git Pull Selesai untuk Production"
 
-                    # Membersihkan image yang tidak terpakai
+                    // Membersihkan image yang tidak terpakai
                     docker image prune -af
                     echo "Docker image pruned untuk Production"
 
-                    # Build image untuk production
+                    // Build image untuk production
                     docker build -t ${images}:production .
                     echo "Docker Build Selesai untuk Production"
 
-                    # Login ke Docker Registry
+                    // Login ke Docker Registry
                     echo "${docker_password}" | docker login ${docker_registry} -u ${docker_username} --password-stdin
                     echo "Docker Login Sukses"
 
-                    # Push image Docker ke registry
+                    // Push image Docker ke registry
                     docker push ${images}:production
                     echo "Docker Push Sukses untuk Production"
                     exit
