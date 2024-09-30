@@ -1,12 +1,9 @@
 def secret = 'SSH_KEY'
-def vmapps= 'team1@34.101.126.235'
 def dir = '~/team1-docker/backend'
 def branch = 'main'
 def images = 'imronnm/backendjenkins'
 def tag = 'latest'
 def docker_registry = 'docker.io'
-def docker_username = 'imronnm'
-def docker_password = 'Beat2023.'
 def spider_domain = 'https://api.team1.staging.studentdumbways.my.id/login'
 def discord_webhook = 'https://discord.com/api/webhooks/1288738076243263511/tF3j9enIM27eZB_NVfv_0gtXpcGm13PrYgbObobY9jDMdhZk9Z_JNHENTpA_4G9dFwJH'
 
