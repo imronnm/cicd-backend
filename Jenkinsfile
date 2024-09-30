@@ -7,7 +7,7 @@ pipeline {
     agent any
     stages {
         // Stage Build for Staging
-        stage("build for staging") {
+        stage("Build for Staging") {
             steps {
                 script {
                     // Use the SSH_KEY credential and VMAPPS credential
@@ -42,12 +42,12 @@ pipeline {
                 }
             }
         }
-        
+
         // Stage Deploy to Staging
-        stage("deploy to staging") {
+        stage("Deploy to Staging") {
             steps {
                 sshagent(['SSH_KEY']) {
-                    sh """ssh -o StrictHostKeyChecking=no ${VMAPPS} << EOF 
+                    sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                     cd ${dir}
                     docker pull ${images}:staging
                     docker stop backend_staging || true
@@ -72,11 +72,11 @@ pipeline {
             }
         }
 
-        // Stage Build and Deploy for Production
-        stage("build for production") {
+        // Stage Build for Production
+        stage("Build for Production") {
             steps {
                 sshagent(['SSH_KEY']) {
-                    sh """ssh -o StrictHostKeyChecking=no ${VMAPPS} << EOF 
+                    sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                     cd ${dir}
                     git pull origin main
                     docker build -t ${images}:production .
@@ -88,7 +88,7 @@ pipeline {
                     exit
                     EOF"""
                 }
-                // Send notification for production deploy success
+                // Send notification for production build success
                 script {
                     def jsonPayload = """
                     {
@@ -103,10 +103,11 @@ pipeline {
             }
         }
 
-        stage("deploy to production") {
+        // Stage Deploy to Production
+        stage("Deploy to Production") {
             steps {
                 sshagent(['SSH_KEY']) {
-                    sh """ssh -o StrictHostKeyChecking=no ${VMAPPS} << EOF 
+                    sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                     cd ${dir}
                     docker pull ${images}:production
                     docker stop backend_production || true
