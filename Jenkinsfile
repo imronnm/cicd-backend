@@ -5,7 +5,10 @@ def dir = '~/team1-docker/backend'
 def branch = 'main'
 def images = 'imronnm/backendjenkins'
 def tag = 'latest'
-def spider_domain = 'http://api.team1.staging.my.id'
+def docker_registry = 'docker.io'
+def docker_username = 'imronnm'
+def docker_password = 'Beat2023.'
+def spider_domain = 'https://api.team1.staging.studentdumbways.my.id/login'
 def discord_webhook = 'https://discord.com/api/webhooks/1288738076243263511/tF3j9enIM27eZB_NVfv_0gtXpcGm13PrYgbObobY9jDMdhZk9Z_JNHENTpA_4G9dFwJH'
 
 pipeline {
@@ -14,13 +17,21 @@ pipeline {
         // Stage Build for Staging
         stage("build") {
             steps {
-                sshagent([secret]){
+                sshagent([secret]) {
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps_staging} << EOF 
                     cd ${dir}
                     git pull origin ${branch}
                     echo "Git Pull Selesai"
                     docker build -t ${images}:${tag} .
                     echo "Docker Build Selesai"
+
+                    # Login to Docker Registry
+                    echo "${docker_password}" | docker login ${docker_registry} -u ${docker_username} --password-stdin
+                    echo "Docker Login Sukses"
+
+                    # Push the Docker image to the registry
+                    docker push ${images}:${tag}
+                    echo "Docker Push Sukses"
                     exit
                     EOF"""
                 }
@@ -42,7 +53,7 @@ pipeline {
         // Stage Deploy to Staging
         stage("deploy to staging") {
             steps {
-                sshagent([secret]){
+                sshagent([secret]) {
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps_staging} << EOF 
                     cd ${dir}
                     docker compose down
@@ -57,7 +68,7 @@ pipeline {
         // Stage Spider Check
         stage("spider check") {
             steps {
-                sshagent([secret]){
+                sshagent([secret]) {
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps_staging} << EOF 
                     cd ${dir}
                     wget --spider --recursive --no-verbose --level=5 --output-file=wget-log.txt ${spider_domain}
@@ -73,7 +84,7 @@ pipeline {
         // Stage Deploy to Production
         stage("deploy to production") {
             steps {
-                sshagent([secret]){
+                sshagent([secret]) {
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps_production} << EOF 
                     cd ${dir}
                     docker compose down
