@@ -3,18 +3,22 @@ def vmapps= 'team1@34.101.126.235'
 def dir = '~/team1-docker/backend'
 def images = 'imronnm/backendjenkins'
 def docker_registry = 'docker.io'
-def docker_username = 'docker_username'
-def docker_password = 'docker_password'
 def spider_domain = 'https://api.team1.staging.studentdumbways.my.id/login'
 def discord_webhook = 'https://discord.com/api/webhooks/1288738076243263511/tF3j9enIM27eZB_NVfv_0gtXpcGm13PrYgbObobY9jDMdhZk9Z_JNHENTpA_4G9dFwJH'
 
 pipeline {
     agent any
+    environment {
+        // Use Jenkins Credentials Binding to bind the Docker credentials
+        DOCKER_USERNAME = credentials('docker_username') // Replace with the ID of your Jenkins Docker username credential
+        DOCKER_PASSWORD = credentials('docker_password') // Replace with the ID of your Jenkins Docker password credential
+        SSH_KEY = credentials('SSH_KEY') // Replace with the ID of your Jenkins SSH Key credential
+    }
     stages {
         // Stage Build untuk Staging
         stage("build for staging") {
             steps {
-                sshagent([secret]) {
+                sshagent([SSH_KEY]) {
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                     cd ${dir}
                     git pull origin staging
@@ -29,7 +33,7 @@ pipeline {
                     echo "Docker Build Selesai untuk Staging"
 
                     # Login ke Docker Registry
-                    echo "${docker_password}" | docker login ${docker_registry} -u ${docker_username} --password-stdin
+                    echo "${DOCKER_PASSWORD}" | docker login ${docker_registry} -u ${DOCKER_USERNAME} --password-stdin
                     echo "Docker Login Sukses"
 
                     # Push image Docker ke registry
@@ -56,7 +60,7 @@ pipeline {
         // Stage Deploy to Staging
         stage("deploy to staging") {
             steps {
-                sshagent([secret]) {
+                sshagent([SSH_KEY]) {
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                     cd ${dir}
                     docker compose down
@@ -71,7 +75,7 @@ pipeline {
         // Stage Spider Check
         stage("spider check") {
             steps {
-                sshagent([secret]) {
+                sshagent([SSH_KEY]) {
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                     cd ${dir}
                     wget --spider --recursive --no-verbose --level=5 --output-file=wget-log.txt ${spider_domain}
@@ -87,7 +91,7 @@ pipeline {
         // Stage Build untuk Production
         stage("build for production") {
             steps {
-                sshagent([secret]) {
+                sshagent([SSH_KEY]) {
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                     cd ${dir}
                     git pull origin main
@@ -102,7 +106,7 @@ pipeline {
                     echo "Docker Build Selesai untuk Production"
 
                     # Login ke Docker Registry
-                    echo "${docker_password}" | docker login ${docker_registry} -u ${docker_username} --password-stdin
+                    echo "${DOCKER_PASSWORD}" | docker login ${docker_registry} -u ${DOCKER_USERNAME} --password-stdin
                     echo "Docker Login Sukses"
 
                     # Push image Docker ke registry
@@ -129,7 +133,7 @@ pipeline {
         // Stage Deploy to Production
         stage("deploy to production") {
             steps {
-                sshagent([secret]) {
+                sshagent([SSH_KEY]) {
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                     cd ${dir}
                     docker compose down
