@@ -2,8 +2,7 @@ def vmapps = 'team1@34.101.126.235'
 def dir = '~/team1-docker/backend'
 def branch = 'main'
 def images = 'imronnm/team1-dumbflx-backend'
-def tag_stag= 'staging'
-def tag_prod = 'production'
+def tag = 'latest'
 def docker_registry = 'docker.io'
 def spider_domain = 'https://api.team1.staging.studentdumbways.my.id/login'
 def discord_webhook = 'https://discord.com/api/webhooks/1288738076243263511/tF3j9enIM27eZB_NVfv_0gtXpcGm13PrYgbObobY9jDMdhZk9Z_JNHENTpA_4G9dFwJH'
@@ -21,7 +20,7 @@ pipeline {
                         cd ${dir}
                         git pull origin ${branch}
                         echo "Git Pull Selesai"
-                        docker build -t ${images}:${tag_stage} .
+                        docker build -t ${images}:${tag} .
                         echo "Docker Build Selesai"
 
                         # Login to Docker Registry
@@ -29,7 +28,7 @@ pipeline {
                         echo "Docker Login Sukses"
 
                         # Push the Docker image to the registry
-                        docker push ${images}:${tag_stage}
+                        docker push ${images}:${tag}
                         echo "Docker Push Sukses"
                         exit
                         EOF"""
@@ -89,7 +88,7 @@ pipeline {
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                     cd ${dir}
                     docker compose down
-                    docker pull ${images}:${tag_prod}
+                    docker pull ${images}:${tag}
                     docker compose up -d
                     echo "Application deployed on Production"
                     exit
