@@ -1,8 +1,6 @@
 def vmapps = 'team1@34.101.126.235'
 def dir = '~/team1-docker/backend'
-def branch = 'main'
 def images = 'imronnm/team1-dumbflx-backend'
-def tag = 'latest'
 def docker_registry = 'docker.io'
 def spider_domain = 'https://api.team1.staging.studentdumbways.my.id/login'
 def discord_webhook = 'https://discord.com/api/webhooks/1288738076243263511/tF3j9enIM27eZB_NVfv_0gtXpcGm13PrYgbObobY9jDMdhZk9Z_JNHENTpA_4G9dFwJH'
@@ -18,9 +16,9 @@ pipeline {
                     sshagent(['SSH_KEY']) {
                         sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                         cd ${dir}
-                        git pull origin ${branch}
+                        git pull origin staging
                         echo "Git Pull Selesai"
-                        docker build -t ${images}:${tag} .
+                        docker build -t ${images}:staging .
                         echo "Docker Build Selesai"
 
                         # Login to Docker Registry
@@ -28,7 +26,7 @@ pipeline {
                         echo "Docker Login Sukses"
 
                         # Push the Docker image to the registry
-                        docker push ${images}:${tag}
+                        docker push ${images}:staging
                         echo "Docker Push Sukses"
                         exit
                         EOF"""
@@ -87,8 +85,11 @@ pipeline {
                 sshagent(['SSH_KEY']) {
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                     cd ${dir}
+                    git pull origin main
+                    echo "Git Pull Selesai for Production"
                     docker compose down
-                    docker pull ${images}:${tag}
+                    # Pull the staging image for production
+                    docker pull ${images}:staging
                     docker compose up -d
                     echo "Application deployed on Production"
                     exit
