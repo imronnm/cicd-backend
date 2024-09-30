@@ -5,8 +5,6 @@ def branch = 'main'
 def images = 'imronnm/backendjenkins'
 def tag = 'latest'
 def docker_registry = 'docker.io'
-def docker_username = 'docker_username'
-def docker_password = 'docker_password'
 def spider_domain = 'https://api.team1.staging.studentdumbways.my.id/login'
 def discord_webhook = 'https://discord.com/api/webhooks/1288738076243263511/tF3j9enIM27eZB_NVfv_0gtXpcGm13PrYgbObobY9jDMdhZk9Z_JNHENTpA_4G9dFwJH'
 
