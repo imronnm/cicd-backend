@@ -1,28 +1,23 @@
-def secret = 'SSH_KEY'
-def vmapps_staging = 'team1@34.101.126.235'
-def vmapps_production = 'team1@34.101.126.235'
-def dir = '~/team1-docker/backend'
-def branch = 'main'
-def images = 'imronnm/backendjenkins'
-def tag = 'latest'
-def spider_domain = 'http://api.team1.staging.my.id'
-
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'docker:latest' // Docker image yang akan digunakan sebagai agent
+            args '-v /var/run/docker.sock:/var/run/docker.sock' // Mengakses Docker daemon dari host
+        }
+    }
+    environment {
+        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'
+    }
     stages {
         // Stage Build for Staging
         stage("build") {
             steps {
-                sshagent([secret]){
-                    sh """ssh -o StrictHostKeyChecking=no ${vmapps_staging} << EOF 
-                    cd ${dir}
-                    git pull origin ${branch}
-                    echo "Git Pull Selesai"
-                    docker build -t ${images}:${tag} .
-                    echo "Docker Build Selesai"
-                    exit
-                    EOF"""
-                }
+                sh """
+                git pull origin ${branch}
+                echo "Git Pull Selesai"
+                docker build -t ${images}:${tag} .
+                echo "Docker Build Selesai"
+                """
             }
         }
 
@@ -30,7 +25,7 @@ pipeline {
         stage("push to Docker Hub") {
             steps {
                 script {
-                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
+                    docker.withRegistry('https://registry-1.docker.io/v2/', DOCKER_CREDENTIALS_ID) {
                         sh "docker push ${images}:${tag}"
                     }
                 }
@@ -40,47 +35,47 @@ pipeline {
         // Stage Deploy to Staging
         stage("deploy to staging") {
             steps {
-                sshagent([secret]){
-                    sh """ssh -o StrictHostKeyChecking=no ${vmapps_staging} << EOF 
-                    cd ${dir}
-                    docker compose down
-                    docker compose up -d
-                    echo "Application deployed on Staging"
-                    exit
-                    EOF"""
-                }
+                sh """
+                ssh -o StrictHostKeyChecking=no ${vmapps_staging} << EOF 
+                cd ${dir}
+                docker compose down
+                docker compose up -d
+                echo "Application deployed on Staging"
+                exit
+                EOF
+                """
             }
         }
 
         // Stage Spider Check
         stage("spider check") {
             steps {
-                sshagent([secret]){
-                    sh """ssh -o StrictHostKeyChecking=no ${vmapps_staging} << EOF 
-                    cd ${dir}
-                    wget --spider --recursive --no-verbose --level=5 --output-file=wget-log.txt ${spider_domain}
-                    echo "Spider check completed"
-                    exit
-                    EOF"""
-                }
+                sh """
+                ssh -o StrictHostKeyChecking=no ${vmapps_staging} << EOF 
+                cd ${dir}
+                wget --spider --recursive --no-verbose --level=5 --output-file=wget-log.txt ${spider_domain}
+                echo "Spider check completed"
+                exit
+                EOF
+                """
                 // Archive the wget log
                 archiveArtifacts artifacts: 'wget-log.txt', allowEmptyArchive: true
             }
         }
-        
+
         // Stage Deploy to Production
         stage("deploy to production") {
             steps {
-                sshagent([secret]){
-                    sh """ssh -o StrictHostKeyChecking=no ${vmapps_production} << EOF 
-                    cd ${dir}
-                    docker compose down
-                    docker pull ${images}:${tag}
-                    docker compose up -d
-                    echo "Application deployed on Production"
-                    exit
-                    EOF"""
-                }
+                sh """
+                ssh -o StrictHostKeyChecking=no ${vmapps_production} << EOF 
+                cd ${dir}
+                docker compose down
+                docker pull ${images}:${tag}
+                docker compose up -d
+                echo "Application deployed on Production"
+                exit
+                EOF
+                """
             }
         }
     }
