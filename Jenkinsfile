@@ -10,7 +10,7 @@ pipeline {
         stage("build for staging") {
             steps {
                 script {
-                    // Use the SSH_KEY credential and VMAPPS credentials
+                    // Use the SSH_KEY credential and VMAPPS credential
                     sshagent(['SSH_KEY']) {
                         sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                         cd ${dir}
