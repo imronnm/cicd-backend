@@ -3,7 +3,7 @@ pipeline {
     environment {
         DOCKER_USERNAME = credentials('docker_username')
         DOCKER_PASSWORD = credentials('docker_password')
-        VM_HOST = 'user@34.101.xxx.xxx' // Ganti dengan host VM yang benar
+        VM_HOST = credentials('vmapps')// Ganti dengan host VM yang benar
         DOCKER_REGISTRY = 'docker.io'
         IMAGE_NAME = 'imronnm/team1-dumbflx-backend'
         DIR = '~/team1-docker/backend'
