@@ -47,7 +47,7 @@ pipeline {
                 }
             }
         }
-        
+
         // Stage Deploy to Staging
         stage("deploy to staging") {
             steps {
@@ -95,6 +95,25 @@ pipeline {
                     exit
                     EOF"""
                 }
+
+                // Build and push the production image
+                sshagent(['SSH_KEY']) {
+                    sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
+                    cd ${dir}
+                    docker build -t ${images}:production .
+                    echo "Docker Build for Production Selesai"
+
+                    # Login to Docker Registry
+                    echo "\${DOCKER_PASSWORD}" | docker login ${docker_registry} -u "\${DOCKER_USERNAME}" --password-stdin
+                    echo "Docker Login Sukses"
+
+                    # Push the Docker image to the registry
+                    docker push ${images}:production
+                    echo "Docker Push for Production Sukses"
+                    exit
+                    EOF"""
+                }
+
                 // Send notification for production deploy success
                 script {
                     def jsonPayload = """
