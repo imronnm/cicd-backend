@@ -1,10 +1,3 @@
-def vmapps = 'team1@34.101.126.235'
-def dir = '~/team1-docker/backend'
-def images = 'imronnm/team1-dumbflx-backend'
-def docker_registry = 'docker.io'
-def spider_domain = 'https://api.team1.staging.studentdumbways.my.id/login'
-def discord_webhook = 'https://discord.com/api/webhooks/1288738076243263511/tF3j9enIM27eZB_NVfv_0gtXpcGm13PrYgbObobY9jDMdhZk9Z_JNHENTpA_4G9dFwJH'
-
 pipeline {
     agent any
     stages {
@@ -12,7 +5,6 @@ pipeline {
         stage("build") {
             steps {
                 script {
-                    // Use the SSH_KEY credential
                     sshagent(['SSH_KEY']) {
                         sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                         cd ${dir}
@@ -27,7 +19,7 @@ pipeline {
 
                         # Push the Docker image to the registry
                         docker push ${images}:staging
-                        echo "Docker Push Sukses"
+                        echo "Docker Push Selesai"
                         exit
                         EOF"""
                     }
@@ -55,7 +47,7 @@ pipeline {
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                     cd ${dir}
                     docker compose down
-                    docker compose up -d
+                    docker compose up -d --build
                     echo "Application deployed on Staging"
                     exit
                     EOF"""
@@ -78,10 +70,11 @@ pipeline {
                 archiveArtifacts artifacts: 'wget-log.txt', allowEmptyArchive: true
             }
         }
-        
+
         // Stage Deploy to Production
         stage("deploy to production") {
             steps {
+                // Step 1: Pull staging image and deploy
                 sshagent(['SSH_KEY']) {
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                     cd ${dir}
@@ -90,13 +83,13 @@ pipeline {
                     docker compose down
                     # Pull the staging image for production
                     docker pull ${images}:staging
-                    docker compose up -d
-                    echo "Application deployed on Production"
+                    docker compose up -d --build
+                    echo "Application deployed on Production using Staging image"
                     exit
                     EOF"""
                 }
 
-                // Build and push the production image
+                // Step 2: Build and push production image
                 sshagent(['SSH_KEY']) {
                     sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
                     cd ${dir}
@@ -109,12 +102,25 @@ pipeline {
 
                     # Push the Docker image to the registry
                     docker push ${images}:production
-                    echo "Docker Push for Production Sukses"
+                    echo "Docker Push for Production Selesai"
                     exit
                     EOF"""
                 }
 
-                // Send notification for production deploy success
+                // Step 3: Deploy production image after push
+                sshagent(['SSH_KEY']) {
+                    sh """ssh -o StrictHostKeyChecking=no ${vmapps} << EOF 
+                    cd ${dir}
+                    docker compose down
+                    # Pull the production image and start the container
+                    docker pull ${images}:production
+                    docker compose up -d --build
+                    echo "Application deployed on Production using Production image"
+                    exit
+                    EOF"""
+                }
+
+                // Step 4: Send notification for production deploy success
                 script {
                     def jsonPayload = """
                     {
