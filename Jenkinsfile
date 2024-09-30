@@ -3,7 +3,7 @@ def vmapps_staging = 'team1@34.101.126.235'
 def vmapps_production = 'team1@34.101.126.235'
 def dir = '~/team1-docker/backend'
 def branch = 'main'
-def images = 'imronnm/backendjenkins'
+def images = 'imronnm/backendjenkins:latest'
 def tag = 'latest'
 def spider_domain = 'http://api.team1.staging.my.id'
 def discord_webhook = 'https://discord.com/api/webhooks/1288738076243263511/tF3j9enIM27eZB_NVfv_0gtXpcGm13PrYgbObobY9jDMdhZk9Z_JNHENTpA_4G9dFwJH'
@@ -24,11 +24,22 @@ pipeline {
                     exit
                     EOF"""
                 }
-                // Send notification for staging build success
+            }
+        }
+
+        // Stage Push to Docker Hub
+        stage("push to Docker Hub") {
+            steps {
                 script {
+                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
+                        sh "docker push ${images}:${tag}"
+                    }
+                }
+                // Send notification for successful image push
+                // script {
                     def jsonPayload = """
                     {
-                        "content": "Build for staging branch was successful!",
+                        "content": "Docker image successfully pushed to Docker Hub!",
                         "username": "Jenkins Bot"
                     }
                     """
@@ -38,7 +49,7 @@ pipeline {
                 }
             }
         }
-        
+
         // Stage Deploy to Staging
         stage("deploy to staging") {
             steps {
@@ -84,17 +95,17 @@ pipeline {
                     EOF"""
                 }
                 // Send notification for production deploy success
-                script {
-                    def jsonPayload = """
-                    {
-                        "content": "Deployment to Production from main branch was successful!",
-                        "username": "Jenkins Bot"
-                    }
-                    """
-                    sh """
-                    curl -X POST -H "Content-Type: application/json" -d '${jsonPayload}' ${discord_webhook}
-                    """
-                }
+                // script {
+                //     def jsonPayload = """
+                //     {
+                //         "content": "Deployment to Production from main branch was successful!",
+                //         "username": "Jenkins Bot"
+                //     }
+                //     """
+                //     sh """
+                //     curl -X POST -H "Content-Type: application/json" -d '${jsonPayload}' ${discord_webhook}
+                //     """
+                // }
             }
         }
     }
