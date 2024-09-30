@@ -6,7 +6,7 @@ pipeline {
         }
     }
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials') // Menggunakan credential DockerHub dari Jenkins
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials') // Gunakan credential DockerHub yang benar
     }
     stages {
         // Stage Build for Staging
@@ -37,7 +37,7 @@ pipeline {
                 }
             }
         }
-        
+
         // Stage Deploy to Staging
         stage("deploy to staging") {
             steps {
